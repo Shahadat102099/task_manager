@@ -1,140 +1,68 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:task_manager/data/models/task_count.dart';
-import 'package:task_manager/data/models/task_count_summary_list_model.dart';
-import 'package:task_manager/data/models/task_list_model.dart';
-import 'package:task_manager/data/network_caller/network_caller.dart';
-import 'package:task_manager/data/network_caller/network_response.dart';
-import 'package:task_manager/data/utility/urls.dart';
-import 'package:task_manager/ui/screens/add_new_task_screen.dart';
-import 'package:task_manager/ui/widgets/profile_summary_card.dart';
-import 'package:task_manager/ui/widgets/summary_card.dart';
-import 'package:task_manager/ui/widgets/task_item_card.dart';
+import 'package:task_manager/ui/controllers/auth_controller.dart';
+import 'package:task_manager/ui/screens/edit_profile_screen.dart';
+import 'package:task_manager/ui/screens/login_screen.dart';
 
-class NewTasksScreen extends StatefulWidget {
-  const NewTasksScreen({super.key});
+class ProfileSummaryCard extends StatelessWidget {
+  const ProfileSummaryCard({
+    super.key,
+    this.enableOnTap = true,
+  });
 
-  @override
-  State<NewTasksScreen> createState() => _NewTasksScreenState();
-}
-
-class _NewTasksScreenState extends State<NewTasksScreen> {
-  bool getNewTaskInProgress = false;
-  bool getTaskCountSummaryInProgress = false;
-  TaskListModel taskListModel = TaskListModel();
-  TaskCountSummaryListModel taskCountSummaryListModel = TaskCountSummaryListModel();
-
-  Future<void> getTaskCountSummaryList() async {
-    getTaskCountSummaryInProgress = true;
-    if (mounted) {
-      setState(() {});
-    }
-    final NetworkResponse response = await NetworkCaller().getRequest(Urls.getTaskStatusCount);
-    if (response.isSuccess) {
-      taskCountSummaryListModel = TaskCountSummaryListModel.fromJson(response.jsonResponse);
-    }
-    getTaskCountSummaryInProgress = false;
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> getNewTaskList() async {
-    getNewTaskInProgress = true;
-    if (mounted) {
-      setState(() {});
-    }
-    final NetworkResponse response = await NetworkCaller().getRequest(Urls.getNewTasks);
-    if (response.isSuccess) {
-      taskListModel = TaskListModel.fromJson(response.jsonResponse);
-    }
-    getNewTaskInProgress = false;
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    getTaskCountSummaryList();
-    getNewTaskList();
-  }
+  final bool enableOnTap;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final response = await Navigator.push(
+    Uint8List imageBytes = const Base64Decoder().convert(AuthController.user?.photo ?? '');
+
+    return ListTile(
+      onTap: () {
+        if (enableOnTap) {
+          Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AddNewTaskScreen(),
+              builder: (context) => const EditProfileScreen(),
             ),
           );
-
-          if (response != null && response == true) {
-            getNewTaskList();
-            getTaskCountSummaryList();
-          }
-        },
-        child: const Icon(Icons.add),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const ProfileSummaryCard(),
-            Visibility(
-              visible: getTaskCountSummaryInProgress == false &&
-                  (taskCountSummaryListModel.taskCountList?.isNotEmpty ??
-                      false),
-              replacement: const LinearProgressIndicator(),
-              child: SizedBox(
-                height: 120,
-                child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount:
-                    taskCountSummaryListModel.taskCountList?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      TaskCount taskCount =
-                      taskCountSummaryListModel.taskCountList![index];
-                      return FittedBox(
-                        child: SummaryCard(
-                          count: taskCount.sum.toString(),
-                          title: taskCount.sId ?? '',
-                        ),
-                      );
-                    }),
-              ),
-            ),
-            Expanded(
-              child: Visibility(
-                visible: getNewTaskInProgress == false,
-                replacement: const Center(child: CircularProgressIndicator()),
-                child: RefreshIndicator(
-                  onRefresh: getNewTaskList,
-                  child: ListView.builder(
-                    itemCount: taskListModel.taskList?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      return TaskItemCard(
-                        task: taskListModel.taskList![index],
-                        onStatusChange: () {
-                          getNewTaskList();
-                        },
-                        showProgress: (inProgress) {
-                          getNewTaskInProgress = inProgress;
-                          if (mounted) {
-                            setState(() {});
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],
+        }
+      },
+      leading: CircleAvatar(
+        child: AuthController.user?.photo == null
+            ? const Icon(Icons.person)
+            : ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Image.memory(
+            imageBytes,
+            fit: BoxFit.cover,
+          ),
         ),
       ),
+      title: Text(
+        fullName,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        AuthController.user?.email ?? '',
+        style: const TextStyle(color: Colors.white),
+      ),
+      trailing: IconButton(
+        onPressed: () async {
+          await AuthController.clearAuthData();
+          // TODO : solve this warning
+          Navigator.pushAndRemoveUntil(
+              context, MaterialPageRoute(builder: (context) => const LoginScreen()), (
+              route) => false);
+        },
+        icon: const Icon(Icons.logout),
+      ),
+      tileColor: Colors.green,
     );
+  }
+
+  String get fullName {
+    return '${AuthController.user?.firstName ?? ''} ${AuthController.user?.lastName ?? ')'}';
   }
 }
