@@ -16,7 +16,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const ProfileSummaryCard(),
+            ProfileSummaryCard(),
             Expanded(
               child: ListView.builder(
                 itemCount: 5,
